@@ -1,12 +1,12 @@
 ﻿<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
 <head>
-  <title>ABYSS :: anonymous social experiment</title>
+  <title>Looking into the Abyss :: anonymous social experiment</title>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 
   <link rel="stylesheet" type="text/css" href="style.css">
 
-  <script language="JavaScript" type="text/javascript" src="script.js?v=3"></script>
+  <script language="JavaScript" type="text/javascript" src="script.js"></script>
 </head>
 
 <body onload="init()">
@@ -16,16 +16,19 @@
   <div id="wrapper">
 
     <div id="header">
-      <p class="title">[ A B Y S S ]</p>
+      <p class="title">[ LOOKING INTO THE ABYSS ]</p>
       <p class="subtitle">questions without owners &bull; answers without faces</p>
     </div>
 
     <div id="nav">
       | <a href="#" onclick="showView('list'); return false;">Questions</a>
       | <a href="#" onclick="showView('new'); return false;">Ask a Question</a>
+      | <a href="#" onclick="randomQuestion(); return false;">Random</a>
       | <a href="#" onclick="showView('about'); return false;">About</a>
-      | <span id="clock"></span> |
+      |
     </div>
+
+    <div id="notify-bar"></div>
 
     <hr class="divider">
 
@@ -49,7 +52,9 @@
       </p>
       <form onsubmit="submitQuestion(); return false;">
         <textarea id="txt-new-question" rows="5"
-          placeholder="What can you not stop thinking about, but never asked anyone?"></textarea>
+          placeholder="What can you not stop thinking about, but never asked anyone?"
+          oninput="charCount('txt-new-question','cc-question',500)"></textarea>
+        <span id="cc-question" class="char-count">0 / 500</span>
         <br><br>
         <input type="submit" value="[ Publish Anonymously ]" class="btn-submit">
         <p class="anon-notice">your question will appear immediately to all visitors.</p>
@@ -58,8 +63,7 @@
 
     <!-- VIEW: ABOUT -->
     <div id="view-about" style="display:none;">
-      <p class="section-label">[ ABOUT THE ABYSS ]</p>
-      <p><span class="highlight">ABYSS</span> is an anonymous social experiment.</p>
+      <p><span class="highlight">LOOKING INTO THE ABYSS</span> is an anonymous social experiment.</p>
       <p>
         The idea is simple: you ask a philosophical, existential, ethical question --
         anything that keeps spinning in your head -- and other people answer.
@@ -70,9 +74,7 @@
         What remains when we remove all of that? Perhaps more honest thoughts.
         Perhaps just noise. That is the experiment.
       </p>
-      <p>As questions and answers are stored on a server. Nothing is tracked, no identity is recorded.</p>
       <p style="color:#4b5563; font-size:8pt;"><i>"If you gaze long into an abyss, the abyss also gazes into you" - Friedrich Nietzsche (Beyond Good and Evil, 1886)</i></p>
-      <p style="color:#4b5563; font-size:8pt;">version <span id="siteVersion"></span> &bull; built with HTML 4.01, Perl 5 and nostalgia</p>
     </div>
 
     <hr class="divider">

@@ -1,2 +1,5 @@
 # generated binary data files (recreate with: perl seed.pl)
-dados/*.bin
+data/*.bin
+
+# local deployment notes
+DEPLOY_ONION.md

@@ -1,12 +1,13 @@
 ﻿// ============================================================
-//  ABYSS :: script.js   version: 1.0
-//  NO RIGHTS RESERVED - copy freely B-)
-//  XMLHttpRequest: invented by Microsoft in IE5 in 2026 B-)
+//  LOOKING INTO THE ABYSS :: script.js   version: 1.0
 // ============================================================
 
 var SITE_VERSION = "1.0";
 var API          = "/cgi-bin/api.pl";
-var KEY          = "abismo_2026";
+// NOTE: visible in page source by design -- client-side JS cannot hide secrets.
+// Its purpose is to protect the .bin files from direct filesystem access
+// (e.g. FTP/server breach). api.pl never sees this key; it stores ciphertext as-is.
+var KEY          = "<L00k 1nto the Abyss>";
 
 // ============================================================
 //  CRYPTO (XOR stream cipher + base64, 90s style)
@@ -14,20 +15,22 @@ var KEY          = "abismo_2026";
 //  Without the key, the .bin files are unreadable even with server access.
 // ============================================================
 
-function xorEncrypt(text) {
+function xorEncrypt(text, nonce) {
+  var stream = KEY + String(nonce);   // unique keystream per message
   var out = '';
   for (var i = 0; i < text.length; i++) {
-    out += String.fromCharCode(text.charCodeAt(i) ^ KEY.charCodeAt(i % KEY.length));
+    out += String.fromCharCode(text.charCodeAt(i) ^ stream.charCodeAt(i % stream.length));
   }
   return btoa(out);
 }
 
-function xorDecrypt(b64) {
+function xorDecrypt(b64, nonce) {
   try {
+    var stream = KEY + String(nonce);   // must match the nonce used at encrypt time
     var raw = atob(b64);
     var out = '';
     for (var i = 0; i < raw.length; i++) {
-      out += String.fromCharCode(raw.charCodeAt(i) ^ KEY.charCodeAt(i % KEY.length));
+      out += String.fromCharCode(raw.charCodeAt(i) ^ stream.charCodeAt(i % stream.length));
     }
     return out;
   } catch (e) {
@@ -116,17 +119,20 @@ function renderListHTML(questions) {
   html += "<table class=\"tb-list\"><tbody>";
   for (i = 0; i < questions.length; i++) {
     var q       = questions[i];
-    var text    = xorDecrypt(q.text);
+    var text    = xorDecrypt(q.text, q.ts);
     var preview = text.length > 110 ? text.substring(0, 110) + "..." : text;
     var n       = q.num_answers || 0;
     var label   = n === 0 ? "no answers" : (n === 1 ? "1 answer" : n + " answers");
+    var numClass = n === 0 ? "question-num unanswered" : "question-num";
     html += "<tr class=\"question-row\">";
-    html += "<td class=\"question-num\">#" + q.id + "</td>";
+    html += "<td class=\"" + numClass + "\">#" + q.id + "</td>";
     html += "<td><a href=\"#\" class=\"question-link\" onclick=\"viewQuestion(" + q.id + "); return false;\">" + escapeHTML(preview) + "</a></td>";
-    html += "<td class=\"list-meta\">" + label + "<br>" + q.date + "</td>";
+    html += "<td class=\"list-meta\">" + label + "<br>" + formatDate(q.ts) + "</td>";
     html += "</tr>";
   }
   html += "</tbody></table>";
+  var n = questions.length;
+  html += "<p class=\"list-footer\">" + n + (n === 1 ? " question" : " questions") + " in the void</p>";
   return html;
 }
 
@@ -154,8 +160,8 @@ function renderDetailHTML(question) {
   var i;
 
   html += "<div class=\"question-box\">";
-  html += "<p class=\"question-text\">" + escapeHTML(xorDecrypt(question.text)) + "</p>";
-  html += "<p class=\"detail-meta\">posted on " + question.date + "</p>";
+  html += "<p class=\"question-text\">" + escapeHTML(xorDecrypt(question.text, question.ts)) + "</p>";
+  html += "<p class=\"detail-meta\">posted on " + formatDate(question.ts) + "</p>";
   html += "</div>";
 
   var answers  = question.answers || [];
@@ -170,8 +176,8 @@ function renderDetailHTML(question) {
     for (i = 0; i < nAnswers; i++) {
       var a = answers[i];
       html += "<div class=\"answer-box\">";
-      html += "<p>" + escapeHTML(xorDecrypt(a.text)) + "</p>";
-      html += "<p class=\"answer-meta\">anonymous &bull; " + a.date + "</p>";
+      html += "<p>" + escapeHTML(xorDecrypt(a.text, a.ts)) + "</p>";
+      html += "<p class=\"answer-meta\">anonymous &bull; " + formatDate(a.ts) + "</p>";
       html += "</div>";
     }
   }
@@ -179,8 +185,8 @@ function renderDetailHTML(question) {
   html += "<hr class=\"divider\">";
   html += "<p class=\"section-label\">[ YOUR ANSWER ]</p>";
   html += "<form onsubmit=\"submitAnswer(" + question.id + "); return false;\">";
-  html += "<textarea id=\"txt-answer\" rows=\"4\" placeholder=\"write without filters...\"></textarea>";
-  html += "<br><br>";
+  html += "<textarea id=\"txt-answer\" rows=\"4\" placeholder=\"write without filters...\" oninput=\"charCount('txt-answer','cc-answer',500)\"></textarea>";
+  html += "<br><span id=\"cc-answer\" class=\"char-count\">0 / 500</span><br><br>";
   html += "<input type=\"submit\" value=\"[ Submit Anonymously ]\" class=\"btn-submit\">";
   html += "</form>";
 
@@ -194,15 +200,17 @@ function renderDetailHTML(question) {
 function submitAnswer(questionId) {
   var el  = document.getElementById("txt-answer");
   var txt = el ? el.value.trim() : "";
-  if (!txt) { alert("Write something before submitting."); return; }
+  if (!txt) { notify("Write something before submitting.", true); return; }
 
-  var params = "action=answer&id=" + questionId + "&text=" + encodeURIComponent(xorEncrypt(txt));
+  var ts     = Math.floor(Date.now() / 1000);
+  var params = "action=answer&id=" + questionId + "&ts=" + ts + "&text=" + encodeURIComponent(xorEncrypt(txt, ts));
 
   xhrPost(API, params, function(err, resp) {
     if (err || !resp || resp.error) {
-      alert("Error submitting answer: " + (resp && resp.error ? resp.error : err));
+      notify("Error submitting answer: " + (resp && resp.error ? resp.error : err), true);
       return;
     }
+    notify("Answer posted anonymously.");
     viewQuestion(questionId);
   });
 }
@@ -214,20 +222,50 @@ function submitAnswer(questionId) {
 function submitQuestion() {
   var el  = document.getElementById("txt-new-question");
   var txt = el ? el.value.trim() : "";
-  if (!txt)            { alert("The question cannot be blank."); return; }
-  if (txt.length < 15) { alert("Question too short. Elaborate a little more."); return; }
+  if (!txt)            { notify("The question cannot be blank.", true); return; }
+  if (txt.length < 15) { notify("Question too short. Elaborate a little more.", true); return; }
 
-  var params = "action=question&text=" + encodeURIComponent(xorEncrypt(txt));
+  var ts     = Math.floor(Date.now() / 1000);
+  var params = "action=question&ts=" + ts + "&text=" + encodeURIComponent(xorEncrypt(txt, ts));
 
   xhrPost(API, params, function(err, resp) {
     if (err || !resp || resp.error) {
-      alert("Error publishing: " + (resp && resp.error ? resp.error : err));
+      notify("Error publishing: " + (resp && resp.error ? resp.error : err), true);
       return;
     }
     el.value = "";
-    alert("Question published anonymously.");
+    notify("Question published anonymously.");
     showView("list");
   });
+}
+
+// ============================================================
+//  RANDOM QUESTION
+// ============================================================
+
+var lastQuestionList = [];
+function randomQuestion() {
+  xhrGet(API + "?action=list", function(err, questions) {
+    if (err || !questions || questions.length === 0) {
+      notify("No questions yet.", true);
+      return;
+    }
+    var pick = questions[Math.floor(Math.random() * questions.length)];
+    viewQuestion(pick.id);
+  });
+}
+
+// ============================================================
+//  CHAR COUNTER
+// ============================================================
+
+function charCount(textareaId, counterId, max) {
+  var ta  = document.getElementById(textareaId);
+  var el  = document.getElementById(counterId);
+  if (!ta || !el) return;
+  var len = ta.value.length;
+  el.innerHTML = len + " / " + max;
+  el.className = len > max ? "char-count over" : "char-count";
 }
 
 // ============================================================
@@ -242,19 +280,14 @@ function escapeHTML(str) {
     .replace(/"/g,  "&quot;");
 }
 
-// ============================================================
-//  CLOCK
-// ============================================================
-
-function updateClock() {
-  var now = new Date();
-  var h = now.getHours();
-  var m = now.getMinutes();
-  var s = now.getSeconds();
-  if (h < 10) h = "0" + h;
-  if (m < 10) m = "0" + m;
-  if (s < 10) s = "0" + s;
-  document.getElementById("clock").innerHTML = h + ":" + m + ":" + s;
+function formatDate(ts) {
+  var d   = new Date(ts * 1000);
+  var day = d.getDate();
+  var mon = d.getMonth() + 1;
+  var yr  = d.getFullYear();
+  if (day < 10) day = "0" + day;
+  if (mon < 10) mon = "0" + mon;
+  return day + "/" + mon + "/" + yr;
 }
 
 // ============================================================
@@ -273,6 +306,25 @@ function toggleTheme() {
     btn.innerHTML  = "&#9728;";
     btn.title      = "Switch to dark mode";
   }
+}
+
+// ============================================================
+//  NOTIFY BAR  (replaces alert() -- 90s status-bar style)
+// ============================================================
+
+var notifyTimer = null;
+function notify(msg, isError) {
+  var bar = document.getElementById("notify-bar");
+  if (!bar) return;
+  bar.innerHTML    = (isError ? "[ ERROR ] " : "[ OK ] ") + escapeHTML(msg);
+  bar.className    = isError ? "error" : "ok";
+  bar.style.display = "block";
+  window.status    = msg;
+  if (notifyTimer) clearTimeout(notifyTimer);
+  notifyTimer = setTimeout(function() {
+    bar.style.display = "none";
+    window.status     = "";
+  }, 3500);
 }
 
 // ============================================================
@@ -295,7 +347,5 @@ function init() {
   if (el) el.innerHTML = SITE_VERSION;
 
   showView("list");
-  updateClock();
-  setInterval(updateClock, 1000);
   setInterval(animateStatus, 120);
 }
