@@ -10,28 +10,28 @@ use warnings;
 use FindBin qw($Bin);
 use Fcntl qw(:flock SEEK_END);
 
-my $FMT_Q = 'V a998 a10';
+my $FMT_Q = 'V V a1004';
 my $SZ_Q  = 1012;
-my $FMT_A = 'V V a998 a10';
+my $FMT_A = 'V V V a1004';
 my $SZ_A  = 1016;
 
 my $DIR    = "$Bin/data";
 my $FILE_Q = "$DIR/questions.bin";
 my $FILE_A = "$DIR/answers.bin";
 
-my $KEY     = "abismo_2026";
-my @KEY_BYTES = map { ord($_) } split //, $KEY;
-my $KEY_LEN   = scalar @KEY_BYTES;
+my $KEY = "<L00k 1nto the Abyss>";
 
 # XOR stream cipher + base64 (mirrors xorEncrypt in script.js)
 sub encrypt {
-    my ($text) = @_;
+    my ($text, $nonce) = @_;
+    my $stream    = $KEY . $nonce;   # unique keystream per message
+    my @str_bytes = map { ord($_) } split //, $stream;
+    my $str_len   = scalar @str_bytes;
     my @bytes = map { ord($_) } split //, $text;
     my $out = '';
     for my $i (0 .. $#bytes) {
-        $out .= chr($bytes[$i] ^ $KEY_BYTES[$i % $KEY_LEN]);
+        $out .= chr($bytes[$i] ^ $str_bytes[$i % $str_len]);
     }
-    # MIME::Base64 may not be installed -- pure-Perl base64
     return encode_base64($out);
 }
 
@@ -51,11 +51,6 @@ sub encode_base64 {
         $out .= defined $bytes[$i+2] ? $chars[$b2 & 0x3F] : '=';
     }
     return $out;
-}
-
-sub today {
-    my @t = localtime;
-    return sprintf("%02d/%02d/%04d", $t[3], $t[4]+1, $t[5]+1900);
 }
 
 # ============================================================
@@ -88,8 +83,9 @@ open(my $fq, '+>:raw', $FILE_Q) or die "Cannot write $FILE_Q: $!";
 flock($fq, LOCK_EX);
 for my $i (0 .. $#questions) {
     my $id  = $i + 1;
-    my $b64 = encrypt($questions[$i]);
-    print $fq pack($FMT_Q, $id, $b64, today());
+    my $ts  = time();
+    my $b64 = encrypt($questions[$i], $ts);
+    print $fq pack($FMT_Q, $id, $ts, $b64);
     printf "Q%d: %s\n", $id, $questions[$i];
 }
 flock($fq, LOCK_UN);
@@ -101,8 +97,9 @@ flock($fa, LOCK_EX);
 for my $i (0 .. $#answers) {
     my $aid  = $i + 1;
     my $q_id = $answers[$i][0];
-    my $b64  = encrypt($answers[$i][1]);
-    print $fa pack($FMT_A, $aid, $q_id, $b64, today());
+    my $ts   = time();
+    my $b64  = encrypt($answers[$i][1], $ts);
+    print $fa pack($FMT_A, $aid, $q_id, $ts, $b64);
     printf "A%d (Q%d): %s\n", $aid, $q_id, $answers[$i][1];
 }
 flock($fa, LOCK_UN);

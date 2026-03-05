@@ -6,7 +6,7 @@
 
   <link rel="stylesheet" type="text/css" href="style.css">
 
-  <script language="JavaScript" type="text/javascript" src="script.js?v=3"></script>
+  <script language="JavaScript" type="text/javascript" src="script.js"></script>
 </head>
 
 <body onload="init()">
@@ -23,6 +23,7 @@
     <div id="nav">
       | <a href="#" onclick="showView('list'); return false;">Questions</a>
       | <a href="#" onclick="showView('new'); return false;">Ask a Question</a>
+      | <a href="#" onclick="randomQuestion(); return false;">Random</a>
       | <a href="#" onclick="showView('about'); return false;">About</a>
       |
     </div>
@@ -51,7 +52,9 @@
       </p>
       <form onsubmit="submitQuestion(); return false;">
         <textarea id="txt-new-question" rows="5"
-          placeholder="What can you not stop thinking about, but never asked anyone?"></textarea>
+          placeholder="What can you not stop thinking about, but never asked anyone?"
+          oninput="charCount('txt-new-question','cc-question',500)"></textarea>
+        <span id="cc-question" class="char-count">0 / 500</span>
         <br><br>
         <input type="submit" value="[ Publish Anonymously ]" class="btn-submit">
         <p class="anon-notice">your question will appear immediately to all visitors.</p>
@@ -60,7 +63,6 @@
 
     <!-- VIEW: ABOUT -->
     <div id="view-about" style="display:none;">
-      <p class="section-label">[ ABOUT LOOKING INTO THE ABYSS ]</p>
       <p><span class="highlight">LOOKING INTO THE ABYSS</span> is an anonymous social experiment.</p>
       <p>
         The idea is simple: you ask a philosophical, existential, ethical question --
@@ -73,7 +75,6 @@
         Perhaps just noise. That is the experiment.
       </p>
       <p style="color:#4b5563; font-size:8pt;"><i>"If you gaze long into an abyss, the abyss also gazes into you" - Friedrich Nietzsche (Beyond Good and Evil, 1886)</i></p>
-      <p style="color:#4b5563; font-size:8pt;">version <span id="siteVersion"></span> &bull; built with HTML 4.01, Perl 5 and nostalgia</p>
     </div>
 
     <hr class="divider">

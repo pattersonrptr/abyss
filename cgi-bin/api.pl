@@ -4,8 +4,8 @@
 #  CGI backend - Perl 5
 #  Format: pack/unpack + seek by ID (like fread/fwrite/fseek in C)
 #
-#  struct Question { uint32 id; char text[998]; char date[10]; };  // 1012 bytes
-#  struct Answer   { uint32 id; uint32 q_id;    char text[998]; char date[10]; }; // 1016 bytes
+#  struct Question { uint32 id; uint32 ts;            char text[1004]; };          // 1012 bytes
+#  struct Answer   { uint32 id; uint32 q_id; uint32 ts; char text[1004]; };        // 1016 bytes
 # ============================================================
 use strict;
 use warnings;
@@ -14,11 +14,11 @@ use Fcntl qw(:flock SEEK_SET SEEK_END);
 use FindBin qw($Bin);
 
 # --- record layout ---
-# text field stores base64(XOR(input)) -- larger to accommodate base64 expansion
-my $FMT_Q = 'V a998 a10';   # V=uint32-LE, a998=base64 ciphertext, a10=date
-my $SZ_Q  = 1012;           # 4 + 998 + 10
-my $FMT_A = 'V V a998 a10';
-my $SZ_A  = 1016;           # 4 + 4 + 998 + 10
+# text field stores base64(XOR(text, nonce)) -- nonce prevents keystream reuse
+my $FMT_Q = 'V V a1004';    # id(4) + timestamp/nonce(4) + ciphertext(1004) = 1012
+my $SZ_Q  = 1012;
+my $FMT_A = 'V V V a1004';  # id(4) + q_id(4) + timestamp/nonce(4) + ciphertext(1004) = 1016
+my $SZ_A  = 1016;
 
 my $DIR    = "$Bin/../data";
 my $FILE_Q = "$DIR/questions.bin";
@@ -49,9 +49,9 @@ sub action_list {
             my $buf;
             my $n = read($fh, $buf, $SZ_Q);
             last unless defined $n && $n == $SZ_Q;
-            my ($id, $text, $date) = unpack($FMT_Q, $buf);
-            $text =~ s/\x00+$//; $date =~ s/\x00+$//;
-            push @questions, { id => $id, text => $text, date => $date };
+            my ($id, $ts, $text) = unpack($FMT_Q, $buf);
+            $text =~ s/\x00+$//;
+            push @questions, { id => $id, ts => $ts, text => $text };
         }
         flock($fh, LOCK_UN);
         close($fh);
@@ -73,8 +73,8 @@ sub action_list {
 
     my @json;
     for my $q (reverse @questions) {
-        push @json, sprintf('{"id":%d,"text":%s,"date":%s,"num_answers":%d}',
-            $q->{id}, json_str($q->{text}), json_str($q->{date}), $cnt{$q->{id}} // 0);
+        push @json, sprintf('{"id":%d,"text":%s,"ts":%d,"num_answers":%d}',
+            $q->{id}, json_str($q->{text}), $q->{ts}, $cnt{$q->{id}} // 0);
     }
     print '[' . join(',', @json) . ']';
 }
@@ -93,8 +93,8 @@ sub action_view {
     close($fh);
 
     unless (($n // 0) == $SZ_Q) { print '{"error":"not found"}'; return; }
-    my ($qid, $text, $date) = unpack($FMT_Q, $buf);
-    $text =~ s/\x00+$//; $date =~ s/\x00+$//;
+    my ($qid, $ts, $text) = unpack($FMT_Q, $buf);
+    $text =~ s/\x00+$//;
     unless ($qid == $id) { print '{"error":"not found"}'; return; }
 
     # answers: linear scan (multiple records per question, no direct seek)
@@ -105,25 +105,26 @@ sub action_view {
             my $abuf;
             my $an = read($fa, $abuf, $SZ_A);
             last unless defined $an && $an == $SZ_A;
-            my ($aid, $aq_id, $atext, $adate) = unpack($FMT_A, $abuf);
+            my ($aid, $aq_id, $ats, $atext) = unpack($FMT_A, $abuf);
             if ($aq_id == $id) {
-                $atext =~ s/\x00+$//; $adate =~ s/\x00+$//;
-                push @ans_json, sprintf('{"text":%s,"date":%s}',
-                    json_str($atext), json_str($adate));
+                $atext =~ s/\x00+$//;
+                push @ans_json, sprintf('{"text":%s,"ts":%d}',
+                    json_str($atext), $ats);
             }
         }
         flock($fa, LOCK_UN);
         close($fa);
     }
 
-    printf('{"id":%d,"text":%s,"date":%s,"answers":[%s]}',
-        $qid, json_str($text), json_str($date), join(',', @ans_json));
+    printf('{"id":%d,"text":%s,"ts":%d,"answers":[%s]}',
+        $qid, json_str($text), $ts, join(',', @ans_json));
 }
 
 sub action_question {
     my $b64 = sanitize_b64($cgi->param('text') // '');
-    if (length($b64) == 0 ) { print '{"error":"empty question"}';    return; }
-    if (length($b64) > 997) { print '{"error":"question too long"}'; return; }
+    my $ts  = int($cgi->param('ts') || time());
+    if (length($b64) == 0 )  { print '{"error":"empty question"}';    return; }
+    if (length($b64) > 1003) { print '{"error":"question too long"}'; return; }
 
     my $fh;
     open($fh, '+<:raw', $FILE_Q) or open($fh, '>:raw', $FILE_Q)
@@ -131,7 +132,7 @@ sub action_question {
     flock($fh, LOCK_EX);
     seek($fh, 0, SEEK_END);
     my $new_id = int(tell($fh) / $SZ_Q) + 1;
-    print $fh pack($FMT_Q, $new_id, $b64, today());
+    print $fh pack($FMT_Q, $new_id, $ts, $b64);
     flock($fh, LOCK_UN);
     close($fh);
 
@@ -141,9 +142,10 @@ sub action_question {
 sub action_answer {
     my $q_id = int($cgi->param('id')   // 0);
     my $b64  = sanitize_b64($cgi->param('text') // '');
-    unless ($q_id > 0)      { print '{"error":"invalid id"}';     return; }
-    if (length($b64) == 0)  { print '{"error":"empty answer"}';   return; }
-    if (length($b64) > 997) { print '{"error":"answer too long"}'; return; }
+    my $ts   = int($cgi->param('ts') || time());
+    unless ($q_id > 0)       { print '{"error":"invalid id"}';     return; }
+    if (length($b64) == 0)   { print '{"error":"empty answer"}';   return; }
+    if (length($b64) > 1003) { print '{"error":"answer too long"}'; return; }
 
     my $fa;
     open($fa, '+<:raw', $FILE_A) or open($fa, '>:raw', $FILE_A)
@@ -151,7 +153,7 @@ sub action_answer {
     flock($fa, LOCK_EX);
     seek($fa, 0, SEEK_END);
     my $new_id = int(tell($fa) / $SZ_A) + 1;
-    print $fa pack($FMT_A, $new_id, $q_id, $b64, today());
+    print $fa pack($FMT_A, $new_id, $q_id, $ts, $b64);
     flock($fa, LOCK_UN);
     close($fa);
 
@@ -172,11 +174,6 @@ sub sanitize {
     $s =~ s/[\x00-\x1f\x7f]/ /g;
     $s =~ s/^\s+|\s+$//g;
     return $s;
-}
-
-sub today {
-    my @t = localtime;
-    return sprintf("%02d/%02d/%04d", $t[3], $t[4]+1, $t[5]+1900);
 }
 
 sub json_str {
