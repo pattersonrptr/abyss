@@ -1,3 +1,9 @@
+![Perl](https://img.shields.io/badge/Perl-39457E?style=flat&logo=perl&logoColor=white)
+![CGI](https://img.shields.io/badge/CGI-backend-blue?style=flat)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Anonymous](https://img.shields.io/badge/anonymous-no%20accounts-black?style=flat)
+![Status](https://img.shields.io/badge/status-experimental-orange?style=flat)
+
 # Looking into the Abyss
 
 > *"If you gaze long into an abyss, the abyss also gazes into you."*  
