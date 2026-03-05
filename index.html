@@ -1,0 +1,85 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <title>ABYSS :: anonymous social experiment</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+  <link rel="stylesheet" type="text/css" href="style.css">
+
+  <script language="JavaScript" type="text/javascript" src="script.js?v=3"></script>
+</head>
+
+<body onload="init()">
+
+  <button id="btnTheme" onclick="toggleTheme()" title="Toggle theme">&#9790;</button>
+
+  <div id="wrapper">
+
+    <div id="header">
+      <p class="title">[ A B Y S S ]</p>
+      <p class="subtitle">questions without owners &bull; answers without faces</p>
+    </div>
+
+    <div id="nav">
+      | <a href="#" onclick="showView('list'); return false;">Questions</a>
+      | <a href="#" onclick="showView('new'); return false;">Ask a Question</a>
+      | <a href="#" onclick="showView('about'); return false;">About</a>
+      | <span id="clock"></span> |
+    </div>
+
+    <hr class="divider">
+
+    <!-- VIEW: LIST -->
+    <div id="view-list">
+      <p class="section-label">[ RECENT QUESTIONS ]</p>
+      <div id="list-content"></div>
+    </div>
+
+    <!-- VIEW: DETAIL -->
+    <div id="view-question" style="display:none;">
+      <p><button class="btn-nav" onclick="showView('list')">&#171; back</button></p>
+      <div id="question-content"></div>
+    </div>
+
+    <!-- VIEW: NEW QUESTION -->
+    <div id="view-new" style="display:none;">
+      <p class="section-label">[ ASK A QUESTION ]</p>
+      <p style="font-size:9pt; color:#6b7280; margin-bottom:14px;">
+        None of your data will be stored. No account, no name, no trace. Just the question.
+      </p>
+      <form onsubmit="submitQuestion(); return false;">
+        <textarea id="txt-new-question" rows="5"
+          placeholder="What can you not stop thinking about, but never asked anyone?"></textarea>
+        <br><br>
+        <input type="submit" value="[ Publish Anonymously ]" class="btn-submit">
+        <p class="anon-notice">your question will appear immediately to all visitors.</p>
+      </form>
+    </div>
+
+    <!-- VIEW: ABOUT -->
+    <div id="view-about" style="display:none;">
+      <p class="section-label">[ ABOUT THE ABYSS ]</p>
+      <p><span class="highlight">ABYSS</span> is an anonymous social experiment.</p>
+      <p>
+        The idea is simple: you ask a philosophical, existential, ethical question --
+        anything that keeps spinning in your head -- and other people answer.
+        No name. No profile. No likes. No algorithm deciding who sees what.
+      </p>
+      <p>
+        No moderation, no reputation to protect, no identity at stake.
+        What remains when we remove all of that? Perhaps more honest thoughts.
+        Perhaps just noise. That is the experiment.
+      </p>
+      <p>As questions and answers are stored on a server. Nothing is tracked, no identity is recorded.</p>
+      <p style="color:#4b5563; font-size:8pt;"><i>"If you gaze long into an abyss, the abyss also gazes into you" - Friedrich Nietzsche (Beyond Good and Evil, 1886)</i></p>
+      <p style="color:#4b5563; font-size:8pt;">version <span id="siteVersion"></span> &bull; built with HTML 4.01, Perl 5 and nostalgia</p>
+    </div>
+
+    <hr class="divider">
+
+    <p class="footer">anonymous by principle &nbsp;|&nbsp; all rights violated</p>
+
+  </div>
+
+</body>
+</html>
