@@ -1,6 +1,6 @@
 ﻿#!/usr/bin/perl
 # ============================================================
-#  ABYSS :: seed.pl
+#  LOOKING INTO THE ABYSS :: seed.pl
 #  Populates questions.bin and answers.bin with seed data.
 #  Run once from the project root:  perl seed.pl
 #  XOR stream cipher + base64 — same key as frontend (script.js)
@@ -15,7 +15,7 @@ my $SZ_Q  = 1012;
 my $FMT_A = 'V V a998 a10';
 my $SZ_A  = 1016;
 
-my $DIR    = "$Bin/dados";
+my $DIR    = "$Bin/data";
 my $FILE_Q = "$DIR/questions.bin";
 my $FILE_A = "$DIR/answers.bin";
 

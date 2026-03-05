@@ -1,6 +1,6 @@
 ﻿#!C:/Strawberry/perl/bin/perl.exe
 # ============================================================
-#  ABYSS :: api.pl  (v2 -- fixed-size binary records)
+#  LOOKING INTO THE ABYSS :: api.pl  (v2 -- fixed-size binary records)
 #  CGI backend - Perl 5
 #  Format: pack/unpack + seek by ID (like fread/fwrite/fseek in C)
 #
@@ -20,7 +20,7 @@ my $SZ_Q  = 1012;           # 4 + 998 + 10
 my $FMT_A = 'V V a998 a10';
 my $SZ_A  = 1016;           # 4 + 4 + 998 + 10
 
-my $DIR    = "$Bin/../dados";
+my $DIR    = "$Bin/../data";
 my $FILE_Q = "$DIR/questions.bin";
 my $FILE_A = "$DIR/answers.bin";
 

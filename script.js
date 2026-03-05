@@ -1,7 +1,5 @@
 ﻿// ============================================================
-//  ABYSS :: script.js   version: 1.0
-//  NO RIGHTS RESERVED - copy freely B-)
-//  XMLHttpRequest: invented by Microsoft in IE5 in 2026 B-)
+//  LOOKING INTO THE ABYSS :: script.js   version: 1.0
 // ============================================================
 
 var SITE_VERSION = "1.0";
@@ -194,15 +192,16 @@ function renderDetailHTML(question) {
 function submitAnswer(questionId) {
   var el  = document.getElementById("txt-answer");
   var txt = el ? el.value.trim() : "";
-  if (!txt) { alert("Write something before submitting."); return; }
+  if (!txt) { notify("Write something before submitting.", true); return; }
 
   var params = "action=answer&id=" + questionId + "&text=" + encodeURIComponent(xorEncrypt(txt));
 
   xhrPost(API, params, function(err, resp) {
     if (err || !resp || resp.error) {
-      alert("Error submitting answer: " + (resp && resp.error ? resp.error : err));
+      notify("Error submitting answer: " + (resp && resp.error ? resp.error : err), true);
       return;
     }
+    notify("Answer posted anonymously.");
     viewQuestion(questionId);
   });
 }
@@ -214,18 +213,18 @@ function submitAnswer(questionId) {
 function submitQuestion() {
   var el  = document.getElementById("txt-new-question");
   var txt = el ? el.value.trim() : "";
-  if (!txt)            { alert("The question cannot be blank."); return; }
-  if (txt.length < 15) { alert("Question too short. Elaborate a little more."); return; }
+  if (!txt)            { notify("The question cannot be blank.", true); return; }
+  if (txt.length < 15) { notify("Question too short. Elaborate a little more.", true); return; }
 
   var params = "action=question&text=" + encodeURIComponent(xorEncrypt(txt));
 
   xhrPost(API, params, function(err, resp) {
     if (err || !resp || resp.error) {
-      alert("Error publishing: " + (resp && resp.error ? resp.error : err));
+      notify("Error publishing: " + (resp && resp.error ? resp.error : err), true);
       return;
     }
     el.value = "";
-    alert("Question published anonymously.");
+    notify("Question published anonymously.");
     showView("list");
   });
 }
@@ -240,21 +239,6 @@ function escapeHTML(str) {
     .replace(/</g,  "&lt;")
     .replace(/>/g,  "&gt;")
     .replace(/"/g,  "&quot;");
-}
-
-// ============================================================
-//  CLOCK
-// ============================================================
-
-function updateClock() {
-  var now = new Date();
-  var h = now.getHours();
-  var m = now.getMinutes();
-  var s = now.getSeconds();
-  if (h < 10) h = "0" + h;
-  if (m < 10) m = "0" + m;
-  if (s < 10) s = "0" + s;
-  document.getElementById("clock").innerHTML = h + ":" + m + ":" + s;
 }
 
 // ============================================================
@@ -273,6 +257,25 @@ function toggleTheme() {
     btn.innerHTML  = "&#9728;";
     btn.title      = "Switch to dark mode";
   }
+}
+
+// ============================================================
+//  NOTIFY BAR  (replaces alert() -- 90s status-bar style)
+// ============================================================
+
+var notifyTimer = null;
+function notify(msg, isError) {
+  var bar = document.getElementById("notify-bar");
+  if (!bar) return;
+  bar.innerHTML    = (isError ? "[ ERROR ] " : "[ OK ] ") + escapeHTML(msg);
+  bar.className    = isError ? "error" : "ok";
+  bar.style.display = "block";
+  window.status    = msg;
+  if (notifyTimer) clearTimeout(notifyTimer);
+  notifyTimer = setTimeout(function() {
+    bar.style.display = "none";
+    window.status     = "";
+  }, 3500);
 }
 
 // ============================================================
@@ -295,7 +298,5 @@ function init() {
   if (el) el.innerHTML = SITE_VERSION;
 
   showView("list");
-  updateClock();
-  setInterval(updateClock, 1000);
   setInterval(animateStatus, 120);
 }
