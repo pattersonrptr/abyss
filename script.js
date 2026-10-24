@@ -5,14 +5,14 @@
 var SITE_VERSION = "1.0";
 var API          = "/cgi-bin/api.pl";
 // NOTE: visible in page source by design -- client-side JS cannot hide secrets.
-// Its purpose is to protect the .bin files from direct filesystem access
-// (e.g. FTP/server breach). api.pl never sees this key; it stores ciphertext as-is.
+// This is obfuscation, not security: anyone with this file can decode the .bin data.
+// api.pl never uses this key; it stores the obfuscated text as-is.
 var KEY          = "<L00k 1nto the Abyss>";
 
 // ============================================================
 //  CRYPTO (XOR stream cipher + base64, 90s style)
 //  Client encrypts before sending; server stores the ciphertext.
-//  Without the key, the .bin files are unreadable even with server access.
+//  Keeps the .bin files from being read as plain text at a glance -- not secure.
 // ============================================================
 
 function xorEncrypt(text, nonce) {

@@ -24,7 +24,7 @@ A single-page web app with a Perl CGI backend. Visitors can:
 - Answer any question anonymously
 - Pick a random question (the abyss chooses for you)
 
-Everything is stored encrypted. The server never sees the plaintext — only the browser does, using a client-side XOR cipher. The `.bin` files on disk are unreadable without the key.
+Messages are stored obfuscated with a 90s-style XOR cipher applied in the browser, so the `.bin` files on disk are not plain text. This is **obfuscation, not real encryption** — see [Obfuscation](#obfuscation-not-encryption).
 
 ---
 
@@ -36,10 +36,12 @@ Everything is stored encrypted. The server never sees the plaintext — only the
 | HTTP | `XMLHttpRequest` (the original, pre-`fetch`) |
 | Backend | Perl 5 CGI script |
 | Storage | Fixed-size binary records (`pack`/`unpack`/`seek`) — like `fread`/`fwrite`/`fseek` in C |
-| Crypto | XOR stream cipher + Base64, client-side only |
+| Obfuscation | XOR cipher + Base64, client-side only (not secure — by design) |
 | Web server | Apache 2.4 with `mod_cgi` |
 
 **This is intentionally simple and deliberately old-fashioned.** The older approaches — CGI scripts, binary flat files, XOR ciphers, ES5 JavaScript, HTML 4.01 — are used on purpose, partly out of nostalgia for the early web, and partly as a personal experiment: *how far can you go with the bare minimum?* There is no framework, no build step, no dependency manager. Just files.
+
+It started as an experiment in AI-assisted coding: recreating how people built websites at the end of the 90s, with the tools of the time.
 
 ---
 
@@ -140,9 +142,9 @@ struct Answer   { uint32_t id; uint32_t q_id; uint32_t ts; char text[1004]; };
 
 Reading record N is a single `seek((N-1) * sizeof, SEEK_SET)` — O(1), no scanning.
 
-### Encryption
+### Obfuscation (not encryption)
 
-Each message is encrypted in the browser before being sent:
+Each message is XOR-obfuscated in the browser before being sent:
 
 1. A **nonce** is generated: `ts` = current Unix timestamp (milliseconds → seconds)
 2. The keystream is `KEY + String(nonce)` — unique per message, prevents keystream reuse
@@ -151,12 +153,12 @@ Each message is encrypted in the browser before being sent:
 
 The server stores the ciphertext as-is. On display, the browser decrypts using the same key + the stored `ts`.
 
-The key is visible in `script.js` by design — client-side JavaScript cannot hide secrets from the browser. Its purpose is to protect the `.bin` files from someone who gains direct filesystem access to the server (FTP breach, etc.), not from the browser user.
+**This provides no real confidentiality.** The key is hardcoded in `script.js`, which is public in this repo and served to every visitor, and the nonce (`ts`) is stored in plain next to each record. Anyone with the files can decrypt everything. Repeating-key XOR is also breakable by frequency analysis even without the key. It is kept as a deliberate 90s-style touch: it only keeps the `.bin` files from being read as plain text at a glance. Real protection would need server-side encryption with a secret key that never leaves the server, or proper end-to-end crypto (e.g. Web Crypto AES-GCM).
 
 ### The `ts` field dual role
 
 The `ts` (Unix timestamp) stored in each record serves two purposes:
-- **Nonce** — makes the keystream unique, preventing the XOR reuse attack
+- **Nonce** — varies the keystream per message (but it is public, so it adds no secrecy)
 - **Date** — the frontend formats it as `dd/mm/yyyy` for display
 
 ---
