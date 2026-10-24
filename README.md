@@ -174,6 +174,36 @@ perl seed.pl
 
 ---
 
+## Before going live (Tor hidden service)
+
+The plan is to publish the Abyss as a `.onion` site. Anonymous posting with no accounts attracts spam and illegal content, and the operator is responsible for what is hosted. These must exist **before** it goes public:
+
+### 1. Moderation queue (required)
+
+- New questions and answers go to a `pending` state and are **not shown** until approved.
+- An admin page (protected, not linked from the public UI) lists pending items with approve / reject.
+- Rejected items are deleted from disk, not just hidden.
+- Storage idea, keeping the fixed-record style: a `status` byte in each record (`0 = pending`, `1 = approved`, `2 = rejected`), or a separate `pending.bin`.
+- Open question: there are no identities, so "trusted posters" can't be auto-approved. Start with **manual approval for everything**; revisit if volume grows.
+
+### 2. Abuse limits
+
+- Rate limit per circuit/time window (no IPs on Tor — limit globally per minute, and cap pending queue size).
+- Max length for questions and answers (already fixed-size records — enforce on the server, not just the UI).
+- Simple word/regex blocklist that sends matches straight to rejected.
+
+### 3. Operator safety
+
+- Run the onion service isolated (container or VM), no other services on the same host.
+- No logs that could identify visitors; no third-party resources (fonts, CDNs) in the page.
+- Decide what to do with reported illegal content (delete + keep no copy) and write a short public rules page.
+
+### 4. Real confidentiality (optional)
+
+The current XOR is only obfuscation (see above). If the stored data needs real protection, encrypt server-side with a key kept outside the web root, or drop the pretence and store plain text behind proper filesystem permissions.
+
+---
+
 ## License
 
 This project is licensed under the [GNU Affero General Public License v3.0](LICENSE).
